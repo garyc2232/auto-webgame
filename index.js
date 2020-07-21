@@ -2,10 +2,9 @@
 const puppeteer = require('puppeteer');
 const {
     url,
-    login,
-    pw
+    account
 } = require("./config.json");
-
+const DEBUG_MODE = false;
 const browserSize = {
     width: 1920 / 2,
     height: 1000
@@ -43,14 +42,14 @@ const savingMoney = async (page) => {
         await page.waitForSelector(btnSaving);
         await page.click(btnSaving);
     }
-    console.log('saving done');
+    DEBUG_MODE && console.log('saving done');
     await refresh(page);
 }
 const fightSuper = async (page) => {
-    console.log('super chk');
+    DEBUG_MODE && console.log('super chk');
     if (await page.$(SUPER) !== null) {
         await savingMoney(page);
-        console.log('super start');
+        DEBUG_MODE && console.log('super start');
         await page.waitForSelector(`${SUPER} > div > input[type=submit]`, {
             visible: true,
         });
@@ -59,10 +58,10 @@ const fightSuper = async (page) => {
         await sleep(500);
         await page.click(HEAL);
         await refresh(page);
-        console.log('super end');
+        DEBUG_MODE && console.log('super end');
         return false;
     } else {
-        console.log('super pass');
+        DEBUG_MODE && console.log('super pass');
         return true
     }
 }
@@ -77,29 +76,29 @@ const refresh = async (page) => {
     await page.waitForSelector(REFRESH, {
         visible: true,
     });
-    console.log('refresh');
+    DEBUG_MODE && console.log('refresh');
     await page.click(REFRESH);
 }
 const baseFight = async (page) => {
-    console.log('battle chk');
+    DEBUG_MODE && console.log('battle chk');
     if (await page.$(BATTLE) !== null) {
-        console.log('battle start');
+        DEBUG_MODE && console.log('battle start');
         await page.waitForSelector(BATTLE, {
             visible: true,
         });
         await page.click(BATTLE);
         await backToMain(page);
-        console.log('battle end');
+        DEBUG_MODE && console.log('battle end');
         return false;
     } else {
-        console.log('battle pass');
+        DEBUG_MODE && console.log('battle pass');
         return true
     }
 }
 const challage = async (page) => {
-    console.log('challage chk');
+    DEBUG_MODE && console.log('challage chk');
     if (await page.$(CHALLENGE) !== null) {
-        console.log('challage start');
+        DEBUG_MODE && console.log('challage start');
         await page.waitForSelector(CHALLENGE);
         await sleep(250);
         await page.click(CHALLENGE);
@@ -108,47 +107,77 @@ const challage = async (page) => {
         await backToMain(page);
         await sleep(500);
         await backToMain(page);
-        console.log('challage end');
+        DEBUG_MODE && console.log('challage end');
         return false;
     } else {
-        console.log('challage pass');
+        DEBUG_MODE && console.log('challage pass');
         return true;
     }
 }
 const sleep = (ms) => new Promise((resolve, rejuct) => setTimeout(() => resolve(), ms));
 
-let loopCount = 0;
-const main = async () => {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args
-    });
-    const page = await browser.newPage();
-    await page.setViewport(browserSize);
-    await page.goto(url);
-
-    // login 
+const login = async (user, page) => {
+    console.log('Tyeing to login ', user.name, user.login);
     const loginName = "input[name=id]";
-    await page.focus(loginName);
-    await page.keyboard.type(login);
     const password = "input[name=pass]";
+    await page.evaluate(({
+        loginName,
+        password
+    }) => {
+        document.querySelector(loginName).value = ''
+        document.querySelector(password).value = ''
+    }, {
+        loginName,
+        password
+    })
+    await page.focus(loginName);
+    await page.keyboard.type(user.login);
     await page.focus(password);
-    await page.keyboard.type(pw);
+    await page.keyboard.type(user.pw);
     const submitLogin = "input[type=submit]";
     await page.click(submitLogin);
     await sleep(1000);
+}
+
+const task = async (user, page) => {
+    let loopCount = 0;
+
+    await login(user, page);
 
     while (true) {
-        console.log('START');
-        await refresh(page);
-        await sleep(1000);
-        await fightSuper(page) && await challage(page) && await baseFight(page);
-        await sleep(10000);
-        loopCount++;
-        console.log('END', loopCount);
+        try {
+            console.log('START', user.name);
+            await refresh(page);
+            await sleep(1000);
+            await fightSuper(page) && await challage(page) && await baseFight(page);
+            await sleep(10000);
+            loopCount++;
+            console.log('END', loopCount);
+        } catch (error) {
+            await page.goto(url);
+            await sleep(1000);
+            await login(user, page);
+            DEBUG_MODE && console.log(`${user.name}: ${error}`);
+        }
+
     }
+}
+
+const main = async () => {
+    const browser = await puppeteer.launch({
+        headless: !DEBUG_MODE,
+        args
+    });
+    account.forEach(async (user) => {
+        const page = await browser.newPage();
+        await page.setViewport(browserSize);
+        await page.goto(url);
+        await task(user, page);
+    })
+    let tabs = await browser.pages();
+    await tabs[0].close();
+    await sleep(1500)
+    console.log(tabs.length);
 };
 
-main().then(() => {
-    console.log(loopCount);
-});
+main();
