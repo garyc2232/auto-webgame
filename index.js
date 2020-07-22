@@ -11,6 +11,8 @@ const browserSize = {
 };
 const args = [];
 args.push(`--window-size=${browserSize.width},${browserSize.height}`);
+args.push('--disable-setuid-sandbox');
+args.push('--no-sandbox');
 
 
 const CHALLENGE = "form[action='./siai.cgi'] > input[type=submit]";
