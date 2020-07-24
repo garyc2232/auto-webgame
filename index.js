@@ -4,7 +4,7 @@ const {
     url,
     account
 } = require("./config.json");
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 const browserSize = {
     width: 1920,
     height: 1000
@@ -124,7 +124,7 @@ const challage = async (page) => {
 }
 const sleep = (ms) => new Promise((resolve, rejuct) => setTimeout(() => resolve(), ms));
 
-const logInfo = async (user, page) => {
+const logInfo = async (user, page, counter) => {
     const lvl = await page.evaluate(() => {
         const tds = document.querySelectorAll("td")
         let lvLabel = [...tds].filter(td => td.innerText == '等級')
@@ -141,7 +141,7 @@ const logInfo = async (user, page) => {
         const b = document.querySelectorAll("font > b");
         return b[0].innerHTML - -b[1].innerHTML
     })
-    console.log(`${user.name} -> ${lvl}, ${gold}`);
+    console.log(`${user.name} -> ${lvl}, ${gold} at ${counter * 1}`);
     await refresh(page, "info back to main");
     await sleep(1000);
     return {
@@ -188,11 +188,11 @@ const forest = async (page) => {
             DEBUG_MODE && console.log("forest go");
             try {
                 if (await page.$(FOREST) !== null) {
-                    await sleep(5100);
+                    await sleep(1200);
                     await page.waitForSelector(`${FOREST} > input[type=submit]`, {
                         visible: true,
                     });
-                    await page.click(`${FOREST} > input[type=submit]`);                    
+                    await page.click(`${FOREST} > input[type=submit]`);
                 } else {
                     DEBUG_MODE && console.log('end');
                     await page.waitForSelector(`input[type=submit]`, {
@@ -273,10 +273,10 @@ const task = async (user, page) => {
                 await page.click(HEAL);
                 await sleep(500);
                 await refresh(page, "heal back to main");
-            }!(loopCount % 200) && await logInfo(user, page);
+            };
+            !(loopCount % 200) && await logInfo(user, page, loopCount++);
             DEBUG_MODE && console.log('wait 10s');
             await sleep(10000);
-            loopCount++;
             // console.log('END', loopCount);
         } catch (error) {
             await page.goto(url);
@@ -291,19 +291,28 @@ const task = async (user, page) => {
 const main = async () => {
     const browser = await puppeteer.launch({
         headless: !DEBUG_MODE,
-        args
+        args,
+        slowMo: 10
     });
     // let test = account.shift();
     // const page = await browser.newPage();
     // await page.setViewport(browserSize);
     // await page.goto(url);
     // await task(test, page);
-    account.forEach(async (user) => {
+    for (let user of account) {
         const page = await browser.newPage();
         await page.setViewport(browserSize);
         await page.goto(url);
-        await task(user, page);
-    })
+        await sleep(20000);
+        task(user, page);
+    }
+    // account.forEach(async (user) => {
+    //     const page = await browser.newPage();
+    //     await page.setViewport(browserSize);
+    //     await page.goto(url);
+    //     await sleep(20000);
+    //     await task(user, page);
+    // })
     let tabs = await browser.pages();
     await tabs[0].close();
     await sleep(1500)
