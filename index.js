@@ -45,7 +45,7 @@ const savingMoney = async (page) => {
         await page.waitForSelector(saving);
         await page.focus(saving);
         await page.keyboard.type("" + currentGold);
-        console.log(`Saved ${currentGold}`);
+        DEBUG_MODE && console.log(`Saved ${currentGold}`);
         const btnSaving = "input[value=存款]";
         await page.waitForSelector(btnSaving);
         await page.click(btnSaving);
@@ -105,8 +105,9 @@ const challage = async (page) => {
     DEBUG_MODE && console.log('challage chk');
     if (await page.$(CHALLENGE) !== null) {
         DEBUG_MODE && console.log('challage start');
-        await page.waitForSelector(CHALLENGE);
-        await sleep(250);
+        await page.waitForSelector(CHALLENGE, {
+            visible: true
+        });
         await page.click(CHALLENGE);
         await sleep(1000);
         const optionID = await page.evaluate(() => document.querySelector('select[name=sentou] option:nth-child(2)').value)
@@ -122,6 +123,32 @@ const challage = async (page) => {
     }
 }
 const sleep = (ms) => new Promise((resolve, rejuct) => setTimeout(() => resolve(), ms));
+
+const logInfo = async (user, page) => {
+    const lvl = await page.evaluate(() => {
+        const tds = document.querySelectorAll("td")
+        let lvLabel = [...tds].filter(td => td.innerText == '等級')
+        return lvLabel[0].nextSibling.innerHTML * 1
+    })
+    await page.waitForSelector(BANK, {
+        visible: true,
+    });
+    await page.click(BANK);
+    await page.waitForSelector("font > b", {
+        visible: true,
+    });
+    const gold = await page.evaluate(async () => {
+        const b = document.querySelectorAll("font > b");
+        return b[0].innerHTML - -b[1].innerHTML
+    })
+    console.log(`${user.name} -> ${lvl}, ${gold}`);
+    await refresh(page, "info back to main");
+    await sleep(1000);
+    return {
+        lvl,
+        gold
+    }
+}
 
 const login = async (user, page) => {
     console.log('Tyeing to login ', user.name, user.login);
@@ -156,20 +183,34 @@ const forest = async (page) => {
             visible: true,
         });
         await page.click(`div.count-mori.count > input[type=submit]`);
+        const btnBack = "button.btn.btn-primary.btn-back";
         while (true) {
             DEBUG_MODE && console.log("forest go");
-            await sleep(1000);
-            if (await page.$(FOREST) !== null) {
-                await page.waitForSelector(`${FOREST} > input[type=submit]`, {
-                    visible: true,
-                });
-                await page.click(`${FOREST} > input[type=submit]`);
-            } else {
-                DEBUG_MODE && console.log('end');
-                await sleep(2000);
-                await page.click(`input[type=submit]`);
-                break;
+            try {
+                if (await page.$(FOREST) !== null) {
+                    await sleep(5100);
+                    await page.waitForSelector(`${FOREST} > input[type=submit]`, {
+                        visible: true,
+                    });
+                    await page.click(`${FOREST} > input[type=submit]`);                    
+                } else {
+                    DEBUG_MODE && console.log('end');
+                    await page.waitForSelector(`input[type=submit]`, {
+                        visible: true,
+                    });
+                    await page.click(`input[type=submit]`);
+                    break;
+                }
+            } catch (error) {
+                if (await page.$(btnBack) !== null) {
+                    DEBUG_MODE && console.log('你已經筋疲力盡！！');
+                    await page.waitForSelector(btnBack, {
+                        visible: true,
+                    });
+                    await page.click(btnBack);
+                }
             }
+
         }
 
         DEBUG_MODE && console.log('forest end');
@@ -201,16 +242,24 @@ const upgrade = async (user, page) => {
             DEBUG_MODE && console.log(`${user.name}: ${error}`);
         }
     }
+}
 
+const testing = async (user, page) => {
+    await login(user, page);
+    const info = await logInfo(user, page);
+    console.log({
+        name: user.name,
+        ...info
+    });
 }
 const task = async (user, page) => {
-    let loopCount = 0;
+    let loopCount = 1;
 
     await login(user, page);
 
     while (true) {
         try {
-            console.log('START', user.name);
+            // console.log('START', user.name);
             await refresh(page);
             await sleep(1000);
             let allSkiped = await fightSuper(page) &&
@@ -218,19 +267,22 @@ const task = async (user, page) => {
                 await challage(page) &&
                 await baseFight(page);
             if (!allSkiped) {
-                await sleep(1000);
+                await page.waitForSelector(HEAL, {
+                    visible: true,
+                });
                 await page.click(HEAL);
                 await sleep(500);
                 await refresh(page, "heal back to main");
-            }
+            }!(loopCount % 200) && await logInfo(user, page);
+            DEBUG_MODE && console.log('wait 10s');
             await sleep(10000);
             loopCount++;
-            console.log('END', loopCount);
+            // console.log('END', loopCount);
         } catch (error) {
             await page.goto(url);
             await sleep(1000);
             await login(user, page);
-            DEBUG_MODE && console.log(`${user.name}: ${error}`);
+            // console.log(`${user.name}: ${error}`);
         }
 
     }
@@ -255,7 +307,6 @@ const main = async () => {
     let tabs = await browser.pages();
     await tabs[0].close();
     await sleep(1500)
-    console.log(tabs.length);
 };
 
 main();
