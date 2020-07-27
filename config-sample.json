@@ -1,0 +1,11 @@
+{
+    "url": "https://ffa.whatsticker.online/others.cgi",
+    "account": [
+        {
+            "name": "YOUR_NAME",
+            "login": "YOUR_LOGIN",
+            "pw": "YOUR_PASSWORD",
+            "enable": true
+        }
+    ]
+}
