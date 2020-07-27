@@ -6,8 +6,8 @@ const {
 } = require("./config.json");
 const DEBUG_MODE = true;
 const browserSize = {
-    width: 1920,
-    height: 1000
+    width: 1920 / 2,
+    height: 1000 
 };
 const args = [];
 args.push(`--window-size=${browserSize.width},${browserSize.height}`);
@@ -186,9 +186,10 @@ const forest = async (page) => {
         const btnBack = "button.btn.btn-primary.btn-back";
         while (true) {
             DEBUG_MODE && console.log("forest go");
+            await sleep(2000);
             try {
                 if (await page.$(FOREST) !== null) {
-                    await sleep(1200);
+                    
                     await page.waitForSelector(`${FOREST} > input[type=submit]`, {
                         visible: true,
                     });
@@ -294,16 +295,22 @@ const main = async () => {
         args,
         slowMo: 10
     });
-    // let test = account.shift();
-    // const page = await browser.newPage();
-    // await page.setViewport(browserSize);
-    // await page.goto(url);
-    // await task(test, page);
     for (let user of account) {
+        if(!user.enable){
+            continue;
+        }
         const page = await browser.newPage();
+        
         await page.setViewport(browserSize);
+        
         await page.goto(url);
-        await sleep(20000);
+        const cookies = [{
+            "name": "cf_clearance",
+            "value": "fb9e306b99538238eb5e36cdadc56a73309c3a7b-1595582711-0-1zc941f3c8z371f60c7z7dfec058-250"
+        }]
+        await page.setCookie(...cookies);
+        await page.goto(url);
+        await sleep(2000);
         task(user, page);
     }
     // account.forEach(async (user) => {
