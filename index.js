@@ -306,20 +306,13 @@ const main = async () => {
         await page.goto(url);
         const cookies = [{
             "name": "cf_clearance",
-            "value": "fb9e306b99538238eb5e36cdadc56a73309c3a7b-1595582711-0-1zc941f3c8z371f60c7z7dfec058-250"
+            "value": "YOUR_OWN_TOKEN"
         }]
         await page.setCookie(...cookies);
         await page.goto(url);
         await sleep(2000);
         task(user, page);
     }
-    // account.forEach(async (user) => {
-    //     const page = await browser.newPage();
-    //     await page.setViewport(browserSize);
-    //     await page.goto(url);
-    //     await sleep(20000);
-    //     await task(user, page);
-    // })
     let tabs = await browser.pages();
     await tabs[0].close();
     await sleep(1500)
