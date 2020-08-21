@@ -1,4 +1,4 @@
-# Auto-webame
+# Auto-webgame
 
 This is a webgame automation by using puppeteer. It is a just for fun project.
 

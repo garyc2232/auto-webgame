@@ -4,10 +4,10 @@ const {
     url,
     account
 } = require("./config.json");
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 const browserSize = {
     width: 1920 / 2,
-    height: 1000 
+    height: 1000
 };
 const args = [];
 args.push(`--window-size=${browserSize.width},${browserSize.height}`);
@@ -57,7 +57,7 @@ const savingMoney = async (page) => {
 const fightSuper = async (page) => {
     DEBUG_MODE && console.log('super chk');
     if (await page.$(SUPER) !== null) {
-        await savingMoney(page);
+        // await savingMoney(page);
         DEBUG_MODE && console.log('super start');
         await page.waitForSelector(`${SUPER} > div > input[type=submit]`, {
             visible: true,
@@ -151,9 +151,10 @@ const logInfo = async (user, page, counter) => {
 }
 
 const login = async (user, page) => {
-    console.log('Tyeing to login ', user.name, user.login);
+    console.log('Trying to login ', user.name, user.login);
     const loginName = "input[name=id]";
     const password = "input[name=pass]";
+    await page.waitFor(1000);
     await page.evaluate(({
         loginName,
         password
@@ -177,7 +178,7 @@ const forest = async (page) => {
     DEBUG_MODE && console.log('forest chk');
 
     if (!await isVisible(`div.count-mori.count > span.msg`, page)) {
-        await savingMoney(page);
+        // await savingMoney(page);
         DEBUG_MODE && console.log('forest start');
         await page.waitForSelector(`div.count-mori.count > input[type=submit]`, {
             visible: true,
@@ -189,7 +190,7 @@ const forest = async (page) => {
             await sleep(2000);
             try {
                 if (await page.$(FOREST) !== null) {
-                    
+
                     await page.waitForSelector(`${FOREST} > input[type=submit]`, {
                         visible: true,
                     });
@@ -245,19 +246,10 @@ const upgrade = async (user, page) => {
     }
 }
 
-const testing = async (user, page) => {
-    await login(user, page);
-    const info = await logInfo(user, page);
-    console.log({
-        name: user.name,
-        ...info
-    });
-}
 const task = async (user, page) => {
     let loopCount = 1;
 
     await login(user, page);
-
     while (true) {
         try {
             // console.log('START', user.name);
@@ -291,35 +283,19 @@ const task = async (user, page) => {
 
 const main = async () => {
     const browser = await puppeteer.launch({
-        headless: !DEBUG_MODE,
-        args,
-        slowMo: 10
+        headless: false,
+        args
     });
     for (let user of account) {
-        if(!user.enable){
+        if (!user.enable) {
             continue;
         }
         const page = await browser.newPage();
-        
         await page.setViewport(browserSize);
-        
         await page.goto(url);
-        const cookies = [{
-            "name": "cf_clearance",
-            "value": "fb9e306b99538238eb5e36cdadc56a73309c3a7b-1595582711-0-1zc941f3c8z371f60c7z7dfec058-250"
-        }]
-        await page.setCookie(...cookies);
-        await page.goto(url);
-        await sleep(2000);
+
         task(user, page);
     }
-    // account.forEach(async (user) => {
-    //     const page = await browser.newPage();
-    //     await page.setViewport(browserSize);
-    //     await page.goto(url);
-    //     await sleep(20000);
-    //     await task(user, page);
-    // })
     let tabs = await browser.pages();
     await tabs[0].close();
     await sleep(1500)
