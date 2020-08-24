@@ -28,6 +28,30 @@ const isVisible = async (el, page) => {
         return e.style.display === 'inline-block' || e.style.display === 'inline'
     }, el);
 }
+const withdrawMoney = async (page) => {
+    await page.waitForSelector(BANK, {
+        visible: true,
+    });
+    await page.click(BANK);
+    await page.waitForSelector("font > b", {
+        visible: true,
+    });
+    const moneyInBank = await page.evaluate(async () => {
+        const b = document.querySelectorAll("font > b")[1];
+        return Math.floor(b.innerHTML / 100)
+    })
+    const withdraw = "input[name=dasu]";
+    await page.waitForSelector(withdraw);
+    await page.focus(withdraw);
+    await page.keyboard.type("" + moneyInBank);
+    await sleep(10000);
+    DEBUG_MODE && console.log(`Withdraw ${moneyInBank}`);
+    const btnSaving = "input[value=提款]";
+    await page.waitForSelector(btnSaving);
+    await page.click(btnSaving);
+    await refresh(page, "saving back to main");
+    await sleep(500);
+}
 const savingMoney = async (page) => {
     await page.waitForSelector(BANK, {
         visible: true,
@@ -45,6 +69,7 @@ const savingMoney = async (page) => {
         await page.waitForSelector(saving);
         await page.focus(saving);
         await page.keyboard.type("" + currentGold);
+        await sleep(9000);
         DEBUG_MODE && console.log(`Saved ${currentGold}`);
         const btnSaving = "input[value=存款]";
         await page.waitForSelector(btnSaving);
@@ -52,12 +77,15 @@ const savingMoney = async (page) => {
     }
     DEBUG_MODE && console.log('saving done');
     await refresh(page, "saving back to main");
-    await sleep(1000);
+    await sleep(500);
 }
-const fightSuper = async (page) => {
+const fightSuper = async (page, lv) => {
+    if (lv < 25000) {
+        return true;
+    }
     DEBUG_MODE && console.log('super chk');
     if (await page.$(SUPER) !== null) {
-        // await savingMoney(page);
+        await savingMoney(page);
         DEBUG_MODE && console.log('super start');
         await page.waitForSelector(`${SUPER} > div > input[type=submit]`, {
             visible: true,
@@ -79,6 +107,7 @@ const backToMain = async (page) => {
     await page.click(btnBack)
 };
 const refresh = async (page, txt = 'refresh') => {
+    await page.waitFor(500);
     await page.waitForSelector(REFRESH, {
         visible: true,
     });
@@ -124,11 +153,15 @@ const challage = async (page) => {
 }
 const sleep = (ms) => new Promise((resolve, rejuct) => setTimeout(() => resolve(), ms));
 
-const logInfo = async (user, page, counter) => {
-    const lvl = await page.evaluate(() => {
+const logInfo = async (page) => {
+    const info = await page.evaluate(() => {
         const tds = document.querySelectorAll("td")
-        let lvLabel = [...tds].filter(td => td.innerText == '等級')
-        return lvLabel[0].nextSibling.innerHTML * 1
+        let lvLabel = [...tds].filter(td => td.innerText == '等級');
+        let jobRoleLabel = [...tds].filter(td => td.innerText == '職業');
+        return {
+            lv: lvLabel[0].nextSibling.innerHTML * 1,
+            job: jobRoleLabel[0].nextElementSibling.innerHTML
+        }
     })
     await page.waitForSelector(BANK, {
         visible: true,
@@ -141,19 +174,17 @@ const logInfo = async (user, page, counter) => {
         const b = document.querySelectorAll("font > b");
         return b[0].innerHTML - -b[1].innerHTML
     })
-    console.log(`${user.name} -> ${lvl}, ${gold} at ${counter * 1}`);
+    info.money = gold;
     await refresh(page, "info back to main");
     await sleep(1000);
-    return {
-        lvl,
-        gold
-    }
+    return info;
 }
 
 const login = async (user, page) => {
     console.log('Trying to login ', user.name, user.login);
     const loginName = "input[name=id]";
     const password = "input[name=pass]";
+    await page.setDefaultTimeout(20000);
     await page.waitFor(1000);
     await page.evaluate(({
         loginName,
@@ -174,17 +205,21 @@ const login = async (user, page) => {
     await sleep(1000);
 }
 
-const forest = async (page) => {
+const forest = async (page, lv) => {
+    if (lv < 25000) {
+        return true;
+    }
     DEBUG_MODE && console.log('forest chk');
 
     if (!await isVisible(`div.count-mori.count > span.msg`, page)) {
-        // await savingMoney(page);
+        await savingMoney(page);
         DEBUG_MODE && console.log('forest start');
         await page.waitForSelector(`div.count-mori.count > input[type=submit]`, {
             visible: true,
         });
         await page.click(`div.count-mori.count > input[type=submit]`);
         const btnBack = "button.btn.btn-primary.btn-back";
+        await page.setDefaultTimeout(6000);
         while (true) {
             DEBUG_MODE && console.log("forest go");
             await sleep(2000);
@@ -200,6 +235,7 @@ const forest = async (page) => {
                     await page.waitForSelector(`input[type=submit]`, {
                         visible: true,
                     });
+                    await page.setDefaultTimeout(20000);
                     await page.click(`input[type=submit]`);
                     break;
                 }
@@ -223,40 +259,36 @@ const forest = async (page) => {
     }
 }
 
-const upgrade = async (user, page) => {
-    const upgradePage = "form[action='./kunren.cgi'] > input[type=submit]";
-    await login(user, page);
-
-    while (true) {
-        try {
-            console.log('START', user.name);
-            await page.waitForSelector(upgradePage);
-            await page.click(upgradePage);
-            await page.waitForSelector("select[name=kaisuu]");
-            await page.select('select[name=kaisuu]', '10');
-            await sleep(500);
-            await page.click("form[action='./kunren.cgi'] > p > input[type=submit]");
-            await refresh(page, "upgrade back to main");
-        } catch (error) {
-            await page.goto(url);
-            await sleep(1000);
-            await login(user, page);
-            DEBUG_MODE && console.log(`${user.name}: ${error}`);
+const getInfo = async (page) => {
+    return await page.evaluate(() => {
+        const tds = document.querySelectorAll("td")
+        let lvLabel = [...tds].filter(td => td.innerText == '等級')
+        let moneyLabel = [...tds].filter(td => td.innerText == '金錢')
+        let jobRoleLabel = [...tds].filter(td => td.innerText == '職業')
+        return {
+            lv: lvLabel[0].nextSibling.innerHTML * 1,
+            money: moneyLabel[0].nextSibling.innerHTML * 1,
+            job: jobRoleLabel[0].nextElementSibling.innerHTML
         }
-    }
+    })
 }
-
 const task = async (user, page) => {
-    let loopCount = 1;
+    let loopCount = 0;
 
     await login(user, page);
+    let lv = 0;
     while (true) {
         try {
             // console.log('START', user.name);
             await refresh(page);
             await sleep(1000);
-            let allSkiped = await fightSuper(page) &&
-                await forest(page) &&
+            if (loopCount++ % 10 == 0) {
+                let info = await reBorn(user, page);
+                lv = info.lv;
+            }
+
+            let allSkiped = await fightSuper(page, lv) &&
+                await forest(page, lv) &&
                 await challage(page) &&
                 await baseFight(page);
             if (!allSkiped) {
@@ -267,7 +299,7 @@ const task = async (user, page) => {
                 await sleep(500);
                 await refresh(page, "heal back to main");
             };
-            !(loopCount % 200) && await logInfo(user, page, loopCount++);
+            // !(loopCount++ % 200) && await logInfo(user, page, loopCount);
             DEBUG_MODE && console.log('wait 10s');
             await sleep(10000);
             // console.log('END', loopCount);
@@ -280,25 +312,76 @@ const task = async (user, page) => {
 
     }
 }
+const reBorn = async (user, page, upgradeTimeMin = 30000) => {
+    let info = await logInfo(page);
+    let d = new Date();
 
+    console.log(`${d.getHours()}:${d.getMinutes()}:${ d.getSeconds()}`, user.name, info);
+    if (info.money < upgradeTimeMin * 10000) {
+        return info;
+    }
+    console.log('reBorn');
+
+    await page.waitFor(10000);
+    await withdrawMoney(page);
+    let newJob = info.job === "拳王" ? "皇帝" : "拳王";
+    console.log(newJob);
+    let newJobID = await page.evaluate((newJob) => {
+        const options = document.querySelectorAll("select[name=syoku]")[0]
+        for (let each of [...options]) {
+            if (each.innerHTML.trim() == newJob) {
+                return each.value
+            }
+        }
+    }, newJob)
+    console.log(newJobID);
+    await page.select('select[name=syoku]', newJobID.toString());
+    console.log('before Submit new job');
+    await page.waitFor(1000);
+    await page.click("input[value=轉職]");
+    console.log('after Submit new job');
+    await page.waitFor(1000);
+    await page.click("input[value=回個人舞台]");
+    await page.waitFor(1000);
+    info = await getInfo(page);
+    console.log(info);
+    if (info.lv === 1) {
+        const upgradeTime = Math.floor(info.money / 10000);
+        const upgradePage = "form[action='./kunren.cgi'] > input[type=submit]";
+        await page.waitForSelector(upgradePage);
+        await page.click(upgradePage);
+        await page.waitForSelector("select[name=kaisuu]");
+        await page.evaluate((upgradeTime) => {
+            const options = document.querySelectorAll("select[name=kaisuu]")[0]
+            options[0].setAttribute("value", upgradeTime)
+
+        }, upgradeTime)
+        await page.waitFor(10000);
+        await page.click("input[value=開始訓練]");
+        await sleep(1000);
+        await refresh(page, "upgrade back to main");
+        await sleep(5000);
+    }
+
+    return;
+}
 const main = async () => {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args
     });
     for (let user of account) {
+        let page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
         if (!user.enable) {
             continue;
         }
-        const page = await browser.newPage();
         await page.setViewport(browserSize);
         await page.goto(url);
-
         task(user, page);
     }
     let tabs = await browser.pages();
     await tabs[0].close();
-    await sleep(1500)
 };
 
 main();
