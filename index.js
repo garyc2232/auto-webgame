@@ -2,7 +2,8 @@
 const puppeteer = require('puppeteer');
 const {
     url,
-    account
+    account,
+    config
 } = require("./config.json");
 const DEBUG_MODE = false;
 const browserSize = {
@@ -80,7 +81,7 @@ const savingMoney = async (page) => {
     await sleep(500);
 }
 const fightSuper = async (page, lv) => {
-    if (lv < 25000) {
+    if (lv < config.skip_task_at) {
         return true;
     }
     DEBUG_MODE && console.log('super chk');
@@ -206,7 +207,7 @@ const login = async (user, page) => {
 }
 
 const forest = async (page, lv) => {
-    if (lv < 25000) {
+    if (lv < config.skip_task_at) {
         return true;
     }
     DEBUG_MODE && console.log('forest chk');
@@ -282,7 +283,7 @@ const task = async (user, page) => {
             // console.log('START', user.name);
             await refresh(page);
             await sleep(1000);
-            if (loopCount++ % 10 == 0) {
+            if (loopCount++ % config.print_log_count == 0) {
                 let info = await reBorn(user, page);
                 lv = info.lv;
             }
@@ -304,20 +305,21 @@ const task = async (user, page) => {
             await sleep(10000);
             // console.log('END', loopCount);
         } catch (error) {
+            loopCount = 0;
+            console.log(`${user.name}: ${error}`);
             await page.goto(url);
             await sleep(1000);
             await login(user, page);
-            // console.log(`${user.name}: ${error}`);
         }
 
     }
 }
-const reBorn = async (user, page, upgradeTimeMin = 30000) => {
+const reBorn = async (user, page) => {
     let info = await logInfo(page);
     let d = new Date();
 
     console.log(`${d.getHours()}:${d.getMinutes()}:${ d.getSeconds()}`, user.name, info);
-    if (info.money < upgradeTimeMin * 10000) {
+    if (info.money < config.upgrade_count * 10000) {
         return info;
     }
     console.log('reBorn');
@@ -325,7 +327,6 @@ const reBorn = async (user, page, upgradeTimeMin = 30000) => {
     await page.waitFor(10000);
     await withdrawMoney(page);
     let newJob = info.job === "拳王" ? "皇帝" : "拳王";
-    console.log(newJob);
     let newJobID = await page.evaluate((newJob) => {
         const options = document.querySelectorAll("select[name=syoku]")[0]
         for (let each of [...options]) {
@@ -334,12 +335,10 @@ const reBorn = async (user, page, upgradeTimeMin = 30000) => {
             }
         }
     }, newJob)
-    console.log(newJobID);
+    console.log(newJobID, newJob);
     await page.select('select[name=syoku]', newJobID.toString());
-    console.log('before Submit new job');
     await page.waitFor(1000);
     await page.click("input[value=轉職]");
-    console.log('after Submit new job');
     await page.waitFor(1000);
     await page.click("input[value=回個人舞台]");
     await page.waitFor(1000);
@@ -357,13 +356,15 @@ const reBorn = async (user, page, upgradeTimeMin = 30000) => {
 
         }, upgradeTime)
         await page.waitFor(10000);
+        console.log('開始訓練', upgradeTime);
         await page.click("input[value=開始訓練]");
-        await sleep(1000);
+        console.log('完成訓練');
+        await sleep(3000);
         await refresh(page, "upgrade back to main");
         await sleep(5000);
     }
 
-    return;
+    return info;
 }
 const main = async () => {
     const browser = await puppeteer.launch({

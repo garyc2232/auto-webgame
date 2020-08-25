@@ -1,5 +1,10 @@
 {
     "url": "https://ffa.whatsticker.online/others.cgi",
+    "config": {
+        "upgrade_count": 1000,
+        "print_log_count": 50,
+        "skip_task_at": 300
+    },
     "account": [
         {
             "name": "YOUR_NAME",
