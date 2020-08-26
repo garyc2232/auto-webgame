@@ -11,9 +11,10 @@ const browserSize = {
     height: 1000
 };
 const args = [];
-args.push(`--window-size=${browserSize.width},${browserSize.height}`);
+// args.push(`--window-size=${browserSize.width},${browserSize.height}`);
 args.push('--disable-setuid-sandbox');
 args.push('--no-sandbox');
+args.push('--disable-gpu');
 
 
 const CHALLENGE = "form[action='./siai.cgi'] > input[type=submit]";
@@ -305,6 +306,7 @@ const task = async (user, page) => {
             await sleep(10000);
             // console.log('END', loopCount);
         } catch (error) {
+            await page.screenshot({path: `${Date.now()}_${user.name}.jpg`})
             loopCount = 0;
             console.log(`${user.name}: ${error}`);
             await page.goto(url);
@@ -372,11 +374,11 @@ const main = async () => {
         args
     });
     for (let user of account) {
-        let page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
         if (!user.enable) {
             continue;
         }
+        let page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
         await page.setViewport(browserSize);
         await page.goto(url);
         task(user, page);
