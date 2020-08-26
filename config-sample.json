@@ -3,7 +3,8 @@
     "config": {
         "upgrade_count": 1000,
         "print_log_count": 50,
-        "skip_task_at": 300
+        "skip_task_at": 300,
+        "logOnError": true
     },
     "account": [
         {

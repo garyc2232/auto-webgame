@@ -306,9 +306,11 @@ const task = async (user, page) => {
             await sleep(10000);
             // console.log('END', loopCount);
         } catch (error) {
-            await page.screenshot({path: `${Date.now()}_${user.name}.jpg`})
+            if(config.logOnError){
+                await page.screenshot({path: `${Date.now()}_${user.name}.jpg`})
+                console.log(`${user.name}: ${error}`);
+            }
             loopCount = 0;
-            console.log(`${user.name}: ${error}`);
             await page.goto(url);
             await sleep(1000);
             await login(user, page);
