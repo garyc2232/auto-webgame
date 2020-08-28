@@ -82,7 +82,7 @@ const savingMoney = async (page) => {
     await sleep(500);
 }
 const fightSuper = async (page, lv) => {
-    if (lv < config.skip_task_at) {
+    if (!config.skip_super_at || lv < config.skip_super_at) {
         return true;
     }
     DEBUG_MODE && console.log('super chk');
@@ -100,6 +100,14 @@ const fightSuper = async (page, lv) => {
         DEBUG_MODE && console.log('super pass');
         return true
     }
+}
+const maze = async (page) => {
+    const btn = `input[value=傳說之旅]`;
+    await page.waitForSelector(btn, {
+        visible: true,
+    });
+    await page.click(btn);
+    await backToMain(page);
 }
 const backToMain = async (page) => {
     const btnBack = "input[type=submit]";
@@ -292,7 +300,8 @@ const task = async (user, page) => {
             let allSkiped = await fightSuper(page, lv) &&
                 await forest(page, lv) &&
                 await challage(page) &&
-                await baseFight(page);
+                await baseFight(page) &&
+                await maze(page);
             if (!allSkiped) {
                 await page.waitForSelector(HEAL, {
                     visible: true,
@@ -306,8 +315,10 @@ const task = async (user, page) => {
             await sleep(10000);
             // console.log('END', loopCount);
         } catch (error) {
-            if(config.logOnError){
-                await page.screenshot({path: `${Date.now()}_${user.name}.jpg`})
+            if (config.logOnError) {
+                await page.screenshot({
+                    path: `${Date.now()}_${user.name}.jpg`
+                })
                 console.log(`${user.name}: ${error}`);
             }
             loopCount = 0;
