@@ -40,8 +40,12 @@ const withdrawMoney = async (page) => {
     });
     const moneyInBank = await page.evaluate(async () => {
         const b = document.querySelectorAll("font > b")[1];
-        return Math.floor(b.innerHTML / 100)
+        return b.innerHTML != '0' ? Math.floor(b.innerHTML / 100) : 0
     })
+    if (moneyInBank === 0) {
+        await refresh(page, "saving back to main");
+        await sleep(500);
+    }
     const withdraw = "input[name=dasu]";
     await page.waitForSelector(withdraw);
     await page.focus(withdraw);
@@ -298,8 +302,8 @@ const task = async (user, page) => {
             }
 
             let allSkiped = await fightSuper(page, lv) &&
-                await forest(page, lv) &&
                 await challage(page) &&
+                await forest(page, lv) &&
                 await baseFight(page) &&
                 await maze(page);
             if (!allSkiped) {
@@ -310,7 +314,6 @@ const task = async (user, page) => {
                 await sleep(500);
                 await refresh(page, "heal back to main");
             };
-            // !(loopCount++ % 200) && await logInfo(user, page, loopCount);
             DEBUG_MODE && console.log('wait 10s');
             await sleep(10000);
             // console.log('END', loopCount);
